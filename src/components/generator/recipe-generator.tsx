@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { generateRecipe } from "@/ai/flows/generate-recipe";
 import type { GenerateRecipeOutput } from "@/ai/flows/generate-recipe";
+import { modifyRecipe } from "@/ai/flows/modify-recipe";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { addRecipe } from "@/services/recipeService";
@@ -24,6 +25,7 @@ import {
   ChefHat,
   Flame,
   CheckCircle2,
+  Wand2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +49,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Separator } from "../ui/separator";
+import { Input } from "../ui/input";
 
 const purposeOptions = [
   { id: "muscle-gain", label: "Muscle Gain", icon: Dumbbell },
@@ -81,6 +84,8 @@ export function RecipeGenerator() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
+  const [refineInstruction, setRefineInstruction] = useState("");
   const [generatedRecipe, setGeneratedRecipe] = useState<GenerateRecipeOutput | null>(null);
   const { toast } = useToast();
 
@@ -121,6 +126,28 @@ export function RecipeGenerator() {
       });
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleRefineRecipe() {
+    if (!generatedRecipe || !refineInstruction) return;
+    setIsRefining(true);
+    try {
+      const result = await modifyRecipe({
+        recipe: generatedRecipe,
+        instruction: refineInstruction,
+      });
+      setGeneratedRecipe(result);
+      setRefineInstruction("");
+    } catch (error) {
+      console.error("Error refining recipe:", error);
+      toast({
+        title: "Error",
+        description: "Failed to refine recipe. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefining(false);
     }
   }
   
@@ -397,7 +424,7 @@ export function RecipeGenerator() {
         </div>
       )}
 
-      {generatedRecipe && (
+      {generatedRecipe && !isRefining && (
         <Card className="mt-8">
           <CardHeader>
             <CardTitle className="text-2xl flex items-center gap-2"><ChefHat /> {generatedRecipe.recipeName}</CardTitle>
@@ -431,6 +458,25 @@ export function RecipeGenerator() {
                 </ol>
               </div>
             </div>
+            
+            <Separator />
+
+            {/* Refine Section */}
+            <div>
+              <h3 className="font-semibold text-lg mb-2">Refine Recipe</h3>
+              <p className="text-sm text-muted-foreground mb-4">Want to change something? Tell the AI what to do.</p>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="e.g., 'Make it vegetarian' or 'Double the servings'"
+                  value={refineInstruction}
+                  onChange={(e) => setRefineInstruction(e.target.value)}
+                />
+                <Button onClick={handleRefineRecipe} disabled={isRefining || !refineInstruction}>
+                    {isRefining ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Wand2 className="mr-2 h-4 w-4"/>}
+                    Refine
+                </Button>
+              </div>
+            </div>
 
             <div className="flex gap-4 pt-4">
                 <Button onClick={handleSaveRecipe} disabled={isSaving || !user}>
@@ -441,6 +487,13 @@ export function RecipeGenerator() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {isRefining && (
+          <div className="text-center mt-8">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary"/>
+            <p className="mt-2 text-muted-foreground">The AI chef is refining your recipe...</p>
+        </div>
       )}
     </div>
   );

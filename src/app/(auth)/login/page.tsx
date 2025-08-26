@@ -14,9 +14,10 @@ import { Label } from "@/components/ui/label"
 import { UtensilsCrossed } from "lucide-react"
 import Link from "next/link"
 import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
+import { createUserProfile, getUserProfile } from "@/services/userService"
 
 // Inline SVG for Google Icon
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -35,7 +36,18 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user profile exists, if not, create one
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile) {
+          await createUserProfile(user, {
+              name: user.displayName || 'New User',
+              email: user.email!,
+          });
+      }
+      
       router.push('/dashboard');
     } catch (error) {
       console.error("Error signing in with Google: ", error);
@@ -44,6 +56,25 @@ export default function LoginPage() {
         description: "Failed to sign in with Google. Please try again.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleEmailSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const email = (event.currentTarget.elements.namedItem('email') as HTMLInputElement).value;
+    const password = (event.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
+
+    if (!email || !password) {
+        toast({ title: "Error", description: "Please enter email and password.", variant: "destructive" });
+        return;
+    }
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        router.push('/dashboard');
+    } catch (error) {
+        console.error("Error signing in: ", error);
+        toast({ title: "Authentication Error", description: "Invalid email or password.", variant: "destructive" });
     }
   };
 
@@ -59,23 +90,25 @@ export default function LoginPage() {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" placeholder="m@example.com" required />
-        </div>
-        <div className="grid gap-2">
-          <div className="flex items-center">
-            <Label htmlFor="password">Password</Label>
-            <Link
-              href="#"
-              className="ml-auto inline-block text-sm underline"
-            >
-              Forgot your password?
-            </Link>
-          </div>
-          <Input id="password" type="password" required />
-        </div>
-        <Button className="w-full">Sign in</Button>
+        <form onSubmit={handleEmailSignIn} className="grid gap-4">
+            <div className="grid gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" type="email" placeholder="m@example.com" required />
+            </div>
+            <div className="grid gap-2">
+            <div className="flex items-center">
+                <Label htmlFor="password">Password</Label>
+                <Link
+                href="#"
+                className="ml-auto inline-block text-sm underline"
+                >
+                Forgot your password?
+                </Link>
+            </div>
+            <Input id="password" type="password" required />
+            </div>
+            <Button type="submit" className="w-full">Sign in</Button>
+        </form>
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -94,7 +127,7 @@ export default function LoginPage() {
       <CardFooter className="flex flex-col gap-4">
         <div className="text-center text-sm">
           Don&apos;t have an account?{" "}
-          <Link href="#" className="underline">
+          <Link href="/signup" className="underline">
             Sign up
           </Link>
         </div>

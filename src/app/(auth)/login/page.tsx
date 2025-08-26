@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { UtensilsCrossed } from "lucide-react"
 import Link from "next/link"
 import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, Auth, getAuth } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { createUserProfile, getUserProfile } from "@/services/userService"

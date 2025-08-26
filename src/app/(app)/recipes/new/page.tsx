@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { addRecipe } from "@/services/recipeService";
+import { enhanceRecipeText } from "@/ai/flows/enhance-recipe-text";
 import { useEffect, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { PlusCircle, Loader2, Wand2 } from "lucide-react";
 
 const recipeSchema = z.object({
   name: z.string().min(3, "Recipe name is required"),
@@ -35,6 +36,7 @@ type RecipeFormData = z.infer<typeof recipeSchema>;
 
 export default function NewRecipePage() {
   const [user, setUser] = useState<User | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState<"ingredients" | "instructions" | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -91,12 +93,31 @@ export default function NewRecipePage() {
     }
   }
 
+  const handleEnhance = async (fieldType: "ingredients" | "instructions") => {
+    const currentValue = form.getValues(fieldType);
+    if (!currentValue) {
+        toast({ title: "Nothing to enhance", description: `Please enter some ${fieldType} first.`, variant: "destructive"});
+        return;
+    }
+    setIsEnhancing(fieldType);
+    try {
+        const result = await enhanceRecipeText({ text: currentValue, fieldType });
+        form.setValue(fieldType, result.enhancedText);
+        toast({ title: "Success!", description: `Your ${fieldType} have been enhanced.` });
+    } catch (error) {
+        console.error(`Error enhancing ${fieldType}:`, error);
+        toast({ title: "Error", description: `Could not enhance ${fieldType}.`, variant: "destructive" });
+    } finally {
+        setIsEnhancing(null);
+    }
+  }
+
 
   return (
     <div className="space-y-6">
        <div>
         <h1 className="text-3xl font-bold tracking-tight">Add a New Recipe</h1>
-        <p className="text-muted-foreground">Manually enter the details of your recipe below.</p>
+        <p className="text-muted-foreground">Manually enter the details of your recipe below, or use the AI helper to format your text.</p>
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -229,7 +250,13 @@ export default function NewRecipePage() {
                     name="ingredients"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Ingredients</FormLabel>
+                            <div className="flex justify-between items-center">
+                                <FormLabel>Ingredients</FormLabel>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleEnhance("ingredients")} disabled={isEnhancing === 'ingredients'}>
+                                    {isEnhancing === 'ingredients' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                    AI Help
+                                </Button>
+                            </div>
                             <FormControl><Textarea placeholder="List each ingredient on a new line..." {...field} rows={8} /></FormControl>
                             <FormMessage />
                         </FormItem>
@@ -240,7 +267,13 @@ export default function NewRecipePage() {
                     name="instructions"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Instructions</FormLabel>
+                            <div className="flex justify-between items-center">
+                                <FormLabel>Instructions</FormLabel>
+                                <Button type="button" variant="ghost" size="sm" onClick={() => handleEnhance("instructions")} disabled={isEnhancing === 'instructions'}>
+                                    {isEnhancing === 'instructions' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                    AI Help
+                                </Button>
+                            </div>
                             <FormControl><Textarea placeholder="List each step on a new line..." {...field} rows={8} /></FormControl>
                             <FormMessage />
                         </FormItem>

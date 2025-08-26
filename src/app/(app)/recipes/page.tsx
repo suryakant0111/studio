@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function MyRecipesPage() {
   const [user, setUser] = useState<User | null>(null);

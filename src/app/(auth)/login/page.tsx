@@ -42,18 +42,26 @@ export default function LoginPage() {
       // Check if user profile exists, if not, create one
       const userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
-          await createUserProfile(user, {
-              name: user.displayName || 'New User',
-              email: user.email!,
-          });
+        await createUserProfile(user, {
+          name: user.displayName || 'New User',
+          email: user.email!,
+        });
       }
       
       router.push('/dashboard');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error signing in with Google: ", error);
+      
+      // Don't show error if user closed the popup
+      if (error.code === 'auth/popup-closed-by-user') {
+        return; // Silent return as user intentionally closed the popup
+      }
+      
       toast({
         title: "Authentication Error",
-        description: "Failed to sign in with Google. Please try again.",
+        description: error.code === 'auth/account-exists-with-different-credential'
+          ? "An account already exists with the same email but different sign-in credentials. Please try a different method."
+          : "Failed to sign in with Google. Please try again.",
         variant: "destructive",
       });
     }
@@ -61,20 +69,59 @@ export default function LoginPage() {
 
   const handleEmailSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const email = (event.currentTarget.elements.namedItem('email') as HTMLInputElement).value;
-    const password = (event.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
-
+    const email = (event.currentTarget.elements.namedItem('email') as HTMLInputElement)?.value?.trim();
+    const password = (event.currentTarget.elements.namedItem('password') as HTMLInputElement)?.value;
+  
     if (!email || !password) {
-        toast({ title: "Error", description: "Please enter email and password.", variant: "destructive" });
-        return;
+      toast({ 
+        title: "Error", 
+        description: "Please enter both email and password.", 
+        variant: "destructive" 
+      });
+      return;
     }
-
+  
     try {
-        await signInWithEmailAndPassword(auth, email, password);
-        router.push('/dashboard');
-    } catch (error) {
-        console.error("Error signing in: ", error);
-        toast({ title: "Authentication Error", description: "Invalid email or password.", variant: "destructive" });
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+      
+      // Check if user profile exists, if not, create one
+      const userProfile = await getUserProfile(user.uid);
+      if (!userProfile) {
+        await createUserProfile(user, {
+          name: user.displayName || email.split('@')[0],
+          email: user.email!,
+        });
+      }
+      
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error("Sign-in error:", error);
+      let errorMessage = "An error occurred during sign in. Please try again.";
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+          errorMessage = "Invalid email or password.";
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = "Too many failed attempts. Please try again later or reset your password.";
+          break;
+        case 'auth/user-disabled':
+          errorMessage = "This account has been disabled. Please contact support.";
+          break;
+        case 'auth/invalid-email':
+          errorMessage = "Please enter a valid email address.";
+          break;
+        default:
+          errorMessage = error.message || errorMessage;
+      }
+      
+      toast({ 
+        title: "Sign In Failed", 
+        description: errorMessage,
+        variant: "destructive" 
+      });
     }
   };
 

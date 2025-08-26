@@ -2,14 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarFooter,
-  useSidebar,
 } from '@/components/ui/sidebar';
 import {
   Home,
@@ -22,9 +21,10 @@ import {
   LogOut,
   UtensilsCrossed,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { auth } from '@/lib/firebase';
+import { signOut } from 'firebase/auth';
+
 
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard' },
@@ -37,6 +37,17 @@ const navItems = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
+
 
   return (
     <div className="flex h-full flex-col">
@@ -78,11 +89,9 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton tooltip="Logout" asChild>
-                <Link href="#">
+              <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
                   <LogOut />
                   <span>Logout</span>
-                </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
          </SidebarMenu>

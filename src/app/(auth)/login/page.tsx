@@ -1,4 +1,6 @@
-"use client"
+// In src/app/(auth)/login/page.tsx
+
+"use client" // Ensure this is at the top if you're using client-side hooks
 
 import { Button } from "@/components/ui/button"
 import {
@@ -18,7 +20,11 @@ import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, setPer
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { createUserProfile, getUserProfile } from "@/services/userService"
+<<<<<<< HEAD
 import { useEffect } from "react";
+=======
+import { useState } from 'react'; // Import useState
+>>>>>>> 6e44f4e347599d1b8a5117cf61b1cd09e90a1182
 
 // Inline SVG for Google Icon
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -33,6 +39,10 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false); // State for email/password sign-in
+  const [isSigningInWithGoogle, setIsSigningInWithGoogle] = useState(false); // State for Google sign-in
 
   // 🔑 Persist user session across refresh
   useEffect(() => {
@@ -42,6 +52,7 @@ export default function LoginPage() {
   }, []);
 
   const handleGoogleSignIn = async () => {
+    setIsSigningInWithGoogle(true); // Disable button on click
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
@@ -50,30 +61,57 @@ export default function LoginPage() {
       // Create user profile if it doesn't exist
       const userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
-        await createUserProfile(user, {
-          name: user.displayName || 'New User',
-          email: user.email!,
-        });
+          await createUserProfile(user, {
+              name: user.displayName || 'New User',
+              email: user.email!,
+          });
       }
 
       router.push('/dashboard');
+      toast({
+        title: "Sign-in successful",
+        description: "You have been successfully signed in with Google.",
+      });
+
     } catch (error: any) {
       console.error("Error signing in with Google: ", error);
 
+<<<<<<< HEAD
       if (error.code === 'auth/popup-closed-by-user') {
         return; // user canceled popup
       }
 
+=======
+      let errorMessage = "Failed to sign in with Google. Please try again."; // Default message
+
+      if (error.code === 'auth/popup-closed-by-user') {
+        // Silent return as user intentionally closed the popup
+        return;
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = "A sign-in attempt was already in progress. Please try again.";
+      }
+      // Handle account-exists-with-different-credential error
+      else if (error.code === 'auth/account-exists-with-different-credential') {
+        // You might want to implement linking logic here
+        // For now, inform the user
+        errorMessage = "An account with this email already exists using a different sign-in method.";
+      }
+      // You can add more checks for other specific Firebase auth errors here
+
+      // Only show toast for errors other than popup-closed-by-user
+>>>>>>> 6e44f4e347599d1b8a5117cf61b1cd09e90a1182
       toast({
         title: "Authentication Error",
-        description: error.code === 'auth/account-exists-with-different-credential'
-          ? "An account already exists with the same email but different sign-in credentials. Please try a different method."
-          : "Failed to sign in with Google. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+
+    } finally {
+      setIsSigningInWithGoogle(false); // Re-enable button after process completes
     }
   };
 
+<<<<<<< HEAD
   const handleEmailSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const email = (event.currentTarget.elements.namedItem('email') as HTMLInputElement)?.value?.trim();
@@ -88,18 +126,29 @@ export default function LoginPage() {
       return;
     }
 
+=======
+  const handleEmailSignIn = async () => {
+    setIsSigningIn(true); // Disable button on click
+>>>>>>> 6e44f4e347599d1b8a5117cf61b1cd09e90a1182
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
+<<<<<<< HEAD
+=======
+      // Check if user profile exists (optional, depends on your flow for email/password users)
+      // If you create profiles on sign up, this check might not be needed here
+>>>>>>> 6e44f4e347599d1b8a5117cf61b1cd09e90a1182
       const userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
-        await createUserProfile(user, {
-          name: user.displayName || email.split('@')[0],
-          email: user.email!,
-        });
+           // Optionally create a profile if it doesn't exist, or handle this in signup
+           await createUserProfile(user, {
+               name: user.email!.split('@')[0], // Simple default name
+               email: user.email!,
+           });
       }
 
+<<<<<<< HEAD
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Sign-in error:", error);
@@ -127,41 +176,77 @@ export default function LoginPage() {
         title: "Sign In Failed", 
         description: errorMessage,
         variant: "destructive" 
+=======
+
+      router.push('/dashboard');
+      toast({
+        title: "Sign-in successful",
+        description: "You have been successfully signed in.",
+>>>>>>> 6e44f4e347599d1b8a5117cf61b1cd09e90a1182
       });
+
+    } catch (error: any) {
+      console.error("Error signing in:", error);
+
+      let errorMessage = "Failed to sign in. Please try again."; // Default message
+
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+        errorMessage = "Invalid email or password. Please try again.";
+      }
+      // You can add more checks for other specific Firebase auth errors here
+
+      toast({
+        title: "Sign-in Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+
+    } finally {
+      setIsSigningIn(false); // Re-enable button after process completes
     }
   };
 
+
   return (
     <Card className="w-full max-w-sm">
-      <CardHeader className="space-y-1 text-center">
-        <div className="inline-flex justify-center">
-            <UtensilsCrossed className="w-8 h-8 text-primary" />
+      <CardHeader className="space-y-1">
+        <div className="flex items-center justify-center space-x-2">
+            <UtensilsCrossed className="h-6 w-6" />
+            <CardTitle className="text-2xl font-bold">Login</CardTitle>
         </div>
-        <CardTitle className="text-2xl">Welcome Back</CardTitle>
         <CardDescription>
-          Enter your email below to login to your account
+          Enter your email and password below to login to your account
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <form onSubmit={handleEmailSignIn} className="grid gap-4">
-            <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="m@example.com" required />
-            </div>
-            <div className="grid gap-2">
-            <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <Link
-                href="#"
-                className="ml-auto inline-block text-sm underline"
-                >
-                Forgot your password?
-                </Link>
-            </div>
-            <Input id="password" type="password" required />
-            </div>
-            <Button type="submit" className="w-full">Sign in</Button>
-        </form>
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="m@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+        <Button
+            className="w-full"
+            onClick={handleEmailSignIn}
+            disabled={isSigningIn} // Apply disabled state
+        >
+            {isSigningIn ? "Signing In..." : "Sign In"}
+        </Button>
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -172,12 +257,17 @@ export default function LoginPage() {
             </span>
           </div>
         </div>
-        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn}>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={handleGoogleSignIn}
+          disabled={isSigningInWithGoogle} // Apply the disabled state
+        >
             <GoogleIcon className="mr-2 h-5 w-5" />
             Sign in with Google
         </Button>
       </CardContent>
-      <CardFooter className="flex flex-col gap-4">
+      <CardFooter>
         <div className="text-center text-sm">
           Don&apos;t have an account?{" "}
           <Link href="/signup" className="underline">

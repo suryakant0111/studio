@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -222,7 +223,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
               <Button asChild size="lg"><Link href="/tracker"><PlusCircle /> Log Food</Link></Button>
-              <Button asChild size="lg" variant="secondary"><Link href="/recipes"><Plus /> Add Recipe</Link></Button>
+              <Button asChild size="lg" variant="secondary"><Link href="/recipes/new"><Plus /> Add Recipe</Link></Button>
               <Button asChild size="lg" variant="secondary"><Link href="/generator"><Bot /> Generate Recipe</Link></Button>
               <Button asChild size="lg" variant="secondary"><Link href="/planner"><Calendar /> Plan Meal</Link></Button>
           </CardContent>

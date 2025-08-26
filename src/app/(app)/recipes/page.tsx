@@ -59,12 +59,19 @@ export default function MyRecipesPage() {
           <h1 className="text-3xl font-bold tracking-tight">My Recipes</h1>
           <p className="text-muted-foreground">Browse, filter, and manage your recipe collection.</p>
         </div>
-        <Button size="lg" asChild>
-          <Link href="/generator">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Add Recipe
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button size="lg" asChild>
+              <Link href="/recipes/new">
+                <PlusCircle className="mr-2 h-5 w-5" />
+                Add Recipe
+              </Link>
+            </Button>
+             <Button size="lg" asChild variant="secondary">
+              <Link href="/generator">
+                Generate with AI
+              </Link>
+            </Button>
+        </div>
       </div>
 
       {/* Filter Section */}
@@ -167,7 +174,7 @@ export default function MyRecipesPage() {
           <h3 className="text-xl font-semibold">No Recipes Yet</h3>
           <p className="text-muted-foreground mt-2">You haven't added any recipes to your collection.</p>
           <Button asChild className="mt-4">
-            <Link href="/generator">Create a Recipe</Link>
+            <Link href="/recipes/new">Create a Recipe</Link>
           </Button>
         </div>
       )}

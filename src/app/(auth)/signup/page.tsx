@@ -1,6 +1,9 @@
 
 "use client"
 
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { UtensilsCrossed } from "lucide-react"
 import Link from "next/link"
 import { auth } from "@/lib/firebase";
@@ -20,30 +24,36 @@ import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { createUserProfile } from "@/services/userService"
 
+const signUpSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+type SignUpFormData = z.infer<typeof signUpSchema>;
+
 export default function SignUpPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const handleEmailSignUp = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const name = (event.currentTarget.elements.namedItem('name') as HTMLInputElement).value;
-        const email = (event.currentTarget.elements.namedItem('email') as HTMLInputElement).value;
-        const password = (event.currentTarget.elements.namedItem('password') as HTMLInputElement).value;
+    const form = useForm<SignUpFormData>({
+        resolver: zodResolver(signUpSchema),
+        defaultValues: {
+            name: "",
+            email: "",
+            password: "",
+        },
+    });
 
-        if (!name || !email || !password) {
-            toast({ title: "Error", description: "Please fill in all fields.", variant: "destructive" });
-            return;
-        }
+    const { isSubmitting } = form.formState;
 
+    const handleEmailSignUp = async (data: SignUpFormData) => {
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const user = userCredential.user;
 
-            // Update Firebase Auth profile
-            await updateProfile(user, { displayName: name });
-
-            // Create user profile in Firestore
-            await createUserProfile(user, { name, email });
+            await updateProfile(user, { displayName: data.name });
+            await createUserProfile(user, { name: data.name, email: data.email });
 
             toast({ title: "Success", description: "Account created successfully!" });
             router.push('/dashboard');
@@ -53,8 +63,6 @@ export default function SignUpPage() {
             let description = "Failed to create account. Please try again.";
             if (error.code === 'auth/email-already-in-use') {
                 description = "This email is already in use.";
-            } else if (error.code === 'auth/weak-password') {
-                description = "Password should be at least 6 characters.";
             }
             toast({ title: "Sign-up Error", description, variant: "destructive" });
         }
@@ -72,21 +80,52 @@ export default function SignUpPage() {
             </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-            <form onSubmit={handleEmailSignUp} className="grid gap-4">
-                <div className="grid gap-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input id="name" type="text" placeholder="Alex Doe" required />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" placeholder="m@example.com" required />
-                </div>
-                <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" required />
-                </div>
-                <Button type="submit" className="w-full">Create Account</Button>
-            </form>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleEmailSignUp)} className="grid gap-4">
+                    <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Full Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Alex Doe" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                    <Input type="email" placeholder="m@example.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Password</FormLabel>
+                                <FormControl>
+                                    <Input type="password" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="submit" className="w-full" disabled={isSubmitting}>
+                        {isSubmitting ? "Creating..." : "Create Account"}
+                    </Button>
+                </form>
+            </Form>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             <div className="text-center text-sm">

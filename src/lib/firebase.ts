@@ -9,7 +9,7 @@ const isLocalhost = isClient &&
    window.location.hostname === '127.0.0.1');
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBNDfwcDnUaJ...",
   authDomain: isLocalhost 
     ? 'localhost' 
     : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "nutri-chef-seven.vercel.app",

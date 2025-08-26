@@ -18,7 +18,7 @@ import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, setPer
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { createUserProfile, getUserProfile } from "@/services/userService"
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 // Inline SVG for Google Icon
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -33,6 +33,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isGoogleSigningIn, setIsGoogleSigningIn] = useState(false);
 
   // 🔑 Persist user session across refresh
   useEffect(() => {
@@ -42,7 +43,11 @@ export default function LoginPage() {
   }, []);
 
   const handleGoogleSignIn = async () => {
+    if (isGoogleSigningIn) return; // Prevent multiple clicks
+    
+    setIsGoogleSigningIn(true);
     const provider = new GoogleAuthProvider();
+    
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
@@ -60,17 +65,28 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error("Error signing in with Google: ", error);
 
-      if (error.code === 'auth/popup-closed-by-user') {
-        return; // user canceled popup
+      // Ignore these specific errors as they're usually user-initiated
+      if (error.code === 'auth/popup-closed-by-user' || 
+          error.code === 'auth/cancelled-popup-request') {
+        return;
+      }
+
+      // Handle specific error cases
+      let errorMessage = "Failed to sign in with Google. Please try again.";
+      
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        errorMessage = "An account already exists with the same email but different sign-in method. Please try a different sign-in method.";
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = "Popup was blocked by your browser. Please allow popups for this site and try again.";
       }
 
       toast({
-        title: "Authentication Error",
-        description: error.code === 'auth/account-exists-with-different-credential'
-          ? "An account already exists with the same email but different sign-in credentials. Please try a different method."
-          : "Failed to sign in with Google. Please try again.",
+        title: "Sign In Failed",
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsGoogleSigningIn(false);
     }
   };
 

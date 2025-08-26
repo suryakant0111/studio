@@ -132,29 +132,30 @@ export default function Dashboard() {
                   { name: 'remaining', value: value.target - value.consumed, fill: 'var(--color-muted)' },
                 ];
                 return (
-                  <div key={key} className="flex flex-col items-center">
-                    <ChartContainer config={chartConfig} className="w-full h-24 aspect-square">
-                      <PieChart accessibilityLayer>
-                        <Pie
-                          data={chartData}
-                          dataKey="value"
-                          nameKey="name"
-                          innerRadius={25}
-                          outerRadius={35}
-                          startAngle={90}
-                          endAngle={450}
-                          cy="50%"
-                        >
-                          {chartData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.fill} stroke={entry.fill}/>
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ChartContainer>
-                    <div className="text-center -mt-10">
-                      <p className="font-bold text-lg">{value.consumed}</p>
-                      <p className="text-xs text-muted-foreground capitalize">{key}</p>
+                  <div key={key} className="flex flex-col items-center gap-2">
+                    <div className="relative w-24 h-24">
+                      <ChartContainer config={chartConfig} className="absolute inset-0">
+                        <PieChart>
+                          <Pie
+                            data={chartData}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={25}
+                            outerRadius={35}
+                            startAngle={90}
+                            endAngle={450}
+                          >
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} stroke={entry.fill}/>
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ChartContainer>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <p className="font-bold text-lg">{value.consumed}</p>
+                      </div>
                     </div>
+                    <p className="text-xs text-muted-foreground capitalize">{key}</p>
                   </div>
                 );
               })}

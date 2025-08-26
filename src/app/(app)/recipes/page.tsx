@@ -1,5 +1,11 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getRecipes } from "@/services/recipeService";
+import { Recipe } from "@/lib/types";
 import { RecipeCard } from '@/components/recipe-card';
-import { mockRecipes } from '@/lib/mock-data';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -18,8 +24,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from "@/components/ui/skeleton";
+import Link from "next/link";
 
 export default function MyRecipesPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+        setLoading(true);
+        const userRecipes = await getRecipes(currentUser.uid);
+        setRecipes(userRecipes);
+        setLoading(false);
+      } else {
+        setUser(null);
+        setRecipes([]);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -27,9 +57,11 @@ export default function MyRecipesPage() {
           <h1 className="text-3xl font-bold tracking-tight">My Recipes</h1>
           <p className="text-muted-foreground">Browse, filter, and manage your recipe collection.</p>
         </div>
-        <Button size="lg">
-          <PlusCircle className="mr-2 h-5 w-5" />
-          Add Recipe
+        <Button size="lg" asChild>
+          <Link href="/generator">
+            <PlusCircle className="mr-2 h-5 w-5" />
+            Add Recipe
+          </Link>
         </Button>
       </div>
 
@@ -109,19 +141,41 @@ export default function MyRecipesPage() {
 
 
       {/* Recipe Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {mockRecipes.map((recipe) => (
-          <RecipeCard key={recipe.id} recipe={recipe} />
-        ))}
-        {mockRecipes.map((recipe) => (
-          <RecipeCard key={recipe.id + '2'} recipe={{...recipe, id: recipe.id + '2'}} />
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader><Skeleton className="h-48 w-full" /></CardHeader>
+              <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : recipes.length > 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {recipes.map((recipe) => (
+            <RecipeCard key={recipe.id} recipe={recipe} />
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-16">
+          <h3 className="text-xl font-semibold">No Recipes Yet</h3>
+          <p className="text-muted-foreground mt-2">You haven't added any recipes to your collection.</p>
+          <Button asChild className="mt-4">
+            <Link href="/generator">Create a Recipe</Link>
+          </Button>
+        </div>
+      )}
       
       {/* Pagination */}
-      <div className="flex justify-center">
-        <Button variant="outline">Load More</Button>
-      </div>
+      {recipes.length > 12 && (
+        <div className="flex justify-center">
+          <Button variant="outline">Load More</Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { generateRecipe } from "@/ai/flows/generate-recipe";
 import type { GenerateRecipeOutput } from "@/ai/flows/generate-recipe";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { addRecipe } from "@/services/recipeService";
+
 
 import {
   Dumbbell,
@@ -34,7 +38,6 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -75,9 +78,18 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export function RecipeGenerator() {
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [generatedRecipe, setGeneratedRecipe] = useState<GenerateRecipeOutput | null>(null);
   const { toast } = useToast();
+
+  useState(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+    });
+    return () => unsubscribe();
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -111,6 +123,46 @@ export function RecipeGenerator() {
       setIsLoading(false);
     }
   }
+  
+  async function handleSaveRecipe() {
+    if (!user || !generatedRecipe) return;
+    setIsSaving(true);
+    try {
+        const [calories, protein] = generatedRecipe.nutritionInfo.match(/\d+/g) || ["0", "0"];
+        
+        await addRecipe(user.uid, {
+            name: generatedRecipe.recipeName,
+            ingredients: generatedRecipe.ingredients,
+            instructions: generatedRecipe.instructions,
+            nutritionInfo: generatedRecipe.nutritionInfo,
+            calories: parseInt(calories),
+            protein: parseInt(protein),
+            category: "Dinner", // default category for now
+            cookTime: form.getValues("availableTime"),
+            servings: form.getValues("numPeople"),
+            difficulty: "Medium", // default difficulty
+            diet: form.getValues("dietaryRestrictions") || [],
+            isFavorite: false,
+            source: 'ai-generated'
+        });
+        
+        toast({
+            title: "Recipe Saved!",
+            description: `${generatedRecipe.recipeName} has been added to your collection.`,
+        });
+        setGeneratedRecipe(null);
+
+    } catch (error) {
+        console.error("Error saving recipe:", error);
+        toast({
+            title: "Error",
+            description: "Could not save recipe.",
+            variant: "destructive",
+        });
+    } finally {
+        setIsSaving(false);
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -125,25 +177,29 @@ export function RecipeGenerator() {
                 control={form.control}
                 name="purpose"
                 render={({ field }) => (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {purposeOptions.map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => field.onChange(option.label)}
-                        className={cn(
-                          "p-4 border rounded-lg text-center transition-colors hover:bg-accent hover:text-accent-foreground",
-                          field.value === option.label ? "bg-primary text-primary-foreground border-primary" : "bg-card"
-                        )}
-                      >
-                        <option.icon className="w-8 h-8 mx-auto mb-2" />
-                        <span className="font-medium">{option.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <FormItem>
+                    <FormControl>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {purposeOptions.map((option) => (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => field.onChange(option.label)}
+                            className={cn(
+                              "p-4 border rounded-lg text-center transition-colors hover:bg-accent hover:text-accent-foreground",
+                              field.value === option.label ? "bg-primary text-primary-foreground border-primary" : "bg-card"
+                            )}
+                          >
+                            <option.icon className="w-8 h-8 mx-auto mb-2" />
+                            <span className="font-medium">{option.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
               />
-              <FormMessage />
             </CardContent>
           </Card>
 
@@ -377,7 +433,10 @@ export function RecipeGenerator() {
             </div>
 
             <div className="flex gap-4 pt-4">
-                <Button>Save to My Recipes</Button>
+                <Button onClick={handleSaveRecipe} disabled={isSaving || !user}>
+                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save to My Recipes
+                </Button>
                 <Button variant="outline" onClick={() => setGeneratedRecipe(null)}>Clear</Button>
             </div>
           </CardContent>

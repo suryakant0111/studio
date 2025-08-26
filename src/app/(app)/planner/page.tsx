@@ -1,14 +1,17 @@
 
 "use client"
 
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, ChevronLeft, ChevronRight, Utensils } from "lucide-react";
-import { mockRecipes } from '@/lib/mock-data';
+import { PlusCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Recipe } from '@/lib/types';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getMealPlan, saveMealPlan } from "@/services/mealPlanService";
+import { getWeekId } from "@/lib/utils";
 
 type MealSlot = 'Breakfast' | 'Lunch' | 'Dinner';
 type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
@@ -16,16 +19,37 @@ type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturda
 const daysOfWeek: Day[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const mealSlots: MealSlot[] = ['Breakfast', 'Lunch', 'Dinner'];
 
+type PlannedMeals = Record<Day, Record<MealSlot, Recipe | null>>;
+
 export default function MealPlannerPage() {
-  const [plannedMeals, setPlannedMeals] = useState<Record<Day, Record<MealSlot, Recipe | null>>>({
-    Monday: { Breakfast: mockRecipes[0], Lunch: mockRecipes[1], Dinner: mockRecipes[2] },
-    Tuesday: { Breakfast: mockRecipes[6], Lunch: null, Dinner: mockRecipes[4] },
-    Wednesday: { Breakfast: null, Lunch: mockRecipes[8], Dinner: mockRecipes[5] },
-    Thursday: { Breakfast: mockRecipes[0], Lunch: mockRecipes[1], Dinner: null },
-    Friday: { Breakfast: mockRecipes[3], Lunch: null, Dinner: mockRecipes[2] },
-    Saturday: { Breakfast: null, Lunch: null, Dinner: null },
-    Sunday: { Breakfast: mockRecipes[6], Lunch: mockRecipes[8], Dinner: mockRecipes[4] },
-  });
+    const [user, setUser] = useState<User | null>(null);
+    const [plannedMeals, setPlannedMeals] = useState<PlannedMeals | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [currentWeekId, setCurrentWeekId] = useState(getWeekId(new Date()));
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                setUser(currentUser);
+                setLoading(true);
+                const plan = await getMealPlan(currentUser.uid, currentWeekId);
+                setPlannedMeals(plan?.days || {
+                    Monday: { Breakfast: null, Lunch: null, Dinner: null },
+                    Tuesday: { Breakfast: null, Lunch: null, Dinner: null },
+                    Wednesday: { Breakfast: null, Lunch: null, Dinner: null },
+                    Thursday: { Breakfast: null, Lunch: null, Dinner: null },
+                    Friday: { Breakfast: null, Lunch: null, Dinner: null },
+                    Saturday: { Breakfast: null, Lunch: null, Dinner: null },
+                    Sunday: { Breakfast: null, Lunch: null, Dinner: null },
+                });
+                setLoading(false);
+            } else {
+                setUser(null);
+                setPlannedMeals(null);
+            }
+        });
+        return () => unsubscribe();
+    }, [currentWeekId]);
 
   return (
     <div className="space-y-6">
@@ -36,7 +60,7 @@ export default function MealPlannerPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon"><ChevronLeft className="h-4 w-4" /></Button>
-          <span className="font-semibold">This Week</span>
+          <span className="font-semibold">{currentWeekId}</span>
           <Button variant="outline" size="icon"><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
@@ -52,7 +76,7 @@ export default function MealPlannerPage() {
                     <CardTitle className="text-sm font-medium">{slot}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-3 pt-0 flex-grow flex items-center justify-center">
-                    {plannedMeals[day][slot] ? (
+                    {plannedMeals && plannedMeals[day][slot] ? (
                        <div className="w-full text-center">
                         <Image src={plannedMeals[day][slot]!.image} alt={plannedMeals[day][slot]!.name} width={100} height={60} className="w-full h-16 object-cover rounded-md mb-2" data-ai-hint="recipe image" />
                         <p className="text-xs font-medium leading-tight">{plannedMeals[day][slot]!.name}</p>

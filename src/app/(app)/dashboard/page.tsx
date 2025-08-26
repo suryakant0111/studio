@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Utensils, Heart, Book, Calendar, PlusCircle, Bot, Zap, Plus } from "lucide-react";
+import { Utensils, Zap, Book, Calendar, PlusCircle, Bot, Plus } from "lucide-react";
 import {
   Carousel,
   CarouselContent,
@@ -18,13 +18,20 @@ import {
 } from "@/components/ui/carousel";
 import {
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartConfig,
 } from "@/components/ui/chart";
 import { Pie, PieChart, Cell } from "recharts";
 import { RecipeCard } from "@/components/recipe-card";
 import { mockRecipes } from "@/lib/mock-data";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { getUserProfile, UserProfile } from "@/services/userService";
+import { getRecipes } from "@/services/recipeService";
+import { Recipe } from "@/lib/types";
+import { getDailyLog } from "@/services/nutritionService";
+import { DailyLog } from "@/lib/types";
 
 const chartConfig = {
   calories: { label: "Calories" },
@@ -33,19 +40,51 @@ const chartConfig = {
   fats: { label: "Fats" },
 } satisfies ChartConfig;
 
-const nutritionData = {
-  calories: { consumed: 1250, target: 2000, color: "hsl(var(--chart-1))" },
-  protein: { consumed: 80, target: 120, color: "hsl(var(--chart-2))" },
-  carbs: { consumed: 150, target: 250, color: "hsl(var(--chart-3))" },
-  fats: { consumed: 40, target: 60, color: "hsl(var(--chart-4))" },
-};
-
 export default function Dashboard() {
+    const [user, setUser] = useState<User | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [recentRecipes, setRecentRecipes] = useState<Recipe[]>([]);
+    const [dailyLog, setDailyLog] = useState<DailyLog | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                setUser(currentUser);
+                const profile = await getUserProfile(currentUser.uid);
+                setUserProfile(profile);
+
+                const recipes = await getRecipes(currentUser.uid);
+                setRecentRecipes(recipes.slice(0, 5));
+
+                const today = new Date().toISOString().split('T')[0];
+                const log = await getDailyLog(currentUser.uid, today);
+                setDailyLog(log);
+
+            } else {
+                setUser(null);
+                setUserProfile(null);
+                setRecentRecipes([]);
+            }
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    const nutritionData = {
+        calories: { consumed: dailyLog?.totals.calories || 0, target: userProfile?.healthGoals.dailyCalories || 2000, color: "hsl(var(--chart-1))" },
+        protein: { consumed: dailyLog?.totals.protein || 0, target: userProfile?.healthGoals.dailyProtein || 120, color: "hsl(var(--chart-2))" },
+        carbs: { consumed: dailyLog?.totals.carbs || 0, target: userProfile?.healthGoals.dailyCarbs || 250, color: "hsl(var(--chart-3))" },
+        fats: { consumed: dailyLog?.totals.fats || 0, target: userProfile?.healthGoals.dailyFats || 60, color: "hsl(var(--chart-4))" },
+    };
+
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, Alex!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {userProfile?.name || 'User'}!</h1>
           <p className="text-muted-foreground">Here's your summary for {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
         </div>
       </div>
@@ -58,8 +97,8 @@ export default function Dashboard() {
             <Utensils className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,250 / 2,000 kcal</div>
-            <p className="text-xs text-muted-foreground">750 kcal remaining</p>
+            <div className="text-2xl font-bold">{nutritionData.calories.consumed.toFixed(0)} / {nutritionData.calories.target} kcal</div>
+            <p className="text-xs text-muted-foreground">{(nutritionData.calories.target - nutritionData.calories.consumed).toFixed(0)} kcal remaining</p>
           </CardContent>
         </Card>
         <Card>
@@ -68,8 +107,8 @@ export default function Dashboard() {
             <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">80g / 120g</div>
-            <p className="text-xs text-muted-foreground">67% of goal</p>
+            <div className="text-2xl font-bold">{nutritionData.protein.consumed.toFixed(0)}g / {nutritionData.protein.target}g</div>
+            <p className="text-xs text-muted-foreground">{nutritionData.protein.target > 0 ? ((nutritionData.protein.consumed / nutritionData.protein.target) * 100).toFixed(0) : 0}% of goal</p>
           </CardContent>
         </Card>
         <Card>
@@ -78,8 +117,8 @@ export default function Dashboard() {
             <Book className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+34</div>
-            <p className="text-xs text-muted-foreground">12 favorites</p>
+            <div className="text-2xl font-bold">+{recentRecipes.length}</div>
+            <p className="text-xs text-muted-foreground">{recentRecipes.filter(r => r.isFavorite).length} favorites</p>
           </CardContent>
         </Card>
         <Card>
@@ -88,8 +127,8 @@ export default function Dashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5 this week</div>
-            <p className="text-xs text-muted-foreground">2 meals for today</p>
+            <div className="text-2xl font-bold">Coming Soon</div>
+            <p className="text-xs text-muted-foreground">Plan your week</p>
           </CardContent>
         </Card>
       </div>
@@ -102,19 +141,26 @@ export default function Dashboard() {
             <CardDescription>Your latest culinary creations and finds.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Carousel opts={{ align: "start", loop: true }} className="w-full">
-              <CarouselContent>
-                {mockRecipes.slice(0, 5).map((recipe) => (
-                  <CarouselItem key={recipe.id} className="md:basis-1/2">
-                    <div className="p-1">
-                      <RecipeCard recipe={recipe} />
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <CarouselPrevious className="hidden sm:flex" />
-              <CarouselNext className="hidden sm:flex" />
-            </Carousel>
+             {recentRecipes.length > 0 ? (
+                <Carousel opts={{ align: "start", loop: true }} className="w-full">
+                  <CarouselContent>
+                    {recentRecipes.map((recipe) => (
+                      <CarouselItem key={recipe.id} className="md:basis-1/2">
+                        <div className="p-1">
+                          <RecipeCard recipe={recipe} />
+                        </div>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+                  <CarouselPrevious className="hidden sm:flex" />
+                  <CarouselNext className="hidden sm:flex" />
+                </Carousel>
+             ) : (
+                <div className="text-center text-muted-foreground py-8">
+                    <p>No recipes found.</p>
+                    <Button asChild variant="link"><Link href="/generator">Generate one now!</Link></Button>
+                </div>
+             )}
           </CardContent>
         </Card>
 
@@ -127,9 +173,13 @@ export default function Dashboard() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               {Object.entries(nutritionData).map(([key, value]) => {
+                const consumed = value.consumed > 0 ? value.consumed : 0;
+                const total = value.target > 0 ? value.target : 1;
+                const remaining = total - consumed > 0 ? total - consumed : 0;
+                
                 const chartData = [
-                  { name: 'consumed', value: value.consumed, fill: value.color },
-                  { name: 'remaining', value: value.target - value.consumed, fill: 'var(--color-muted)' },
+                  { name: 'consumed', value: consumed, fill: value.color },
+                  { name: 'remaining', value: remaining, fill: 'var(--color-muted)' },
                 ];
                 return (
                   <div key={key} className="flex flex-col items-center gap-2">
@@ -152,7 +202,7 @@ export default function Dashboard() {
                         </PieChart>
                       </ChartContainer>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <p className="font-bold text-lg">{value.consumed}</p>
+                        <p className="font-bold text-lg">{value.consumed.toFixed(0)}</p>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground capitalize">{key}</p>
@@ -171,10 +221,10 @@ export default function Dashboard() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4">
-              <Button size="lg"><PlusCircle className="mr-2 h-4 w-4" /> Log Food</Button>
-              <Button size="lg" variant="secondary"><Plus className="mr-2 h-4 w-4" /> Add Recipe</Button>
-              <Button size="lg" variant="secondary"><Bot className="mr-2 h-4 w-4" /> Generate Recipe</Button>
-              <Button size="lg" variant="secondary"><Calendar className="mr-2 h-4 w-4" /> Plan Meal</Button>
+              <Button asChild size="lg"><Link href="/tracker"><PlusCircle /> Log Food</Link></Button>
+              <Button asChild size="lg" variant="secondary"><Link href="/recipes"><Plus /> Add Recipe</Link></Button>
+              <Button asChild size="lg" variant="secondary"><Link href="/generator"><Bot /> Generate Recipe</Link></Button>
+              <Button asChild size="lg" variant="secondary"><Link href="/planner"><Calendar /> Plan Meal</Link></Button>
           </CardContent>
         </Card>
         <Card>

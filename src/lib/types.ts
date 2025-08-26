@@ -9,6 +9,47 @@ export type Recipe = {
   protein: number; // in grams
   image: string;
   isFavorite: boolean;
-  dateAdded: string; // ISO string
-  diet: ('Vegetarian' | 'Vegan' | 'Keto' | 'High-protein' | 'Low-carb')[];
+  dateAdded: any; // Firestore timestamp
+  diet: string[];
+  ingredients?: string[];
+  instructions?: string[];
+  nutritionInfo?: string;
+  source?: 'ai-generated' | 'user-added' | 'imported';
 };
+
+export type MealPlan = {
+  id: string; // e.g. 2024-W30
+  userId: string;
+  days: Record<string, {
+    Breakfast: Recipe | null;
+    Lunch: Recipe | null;
+    Dinner: Recipe | null;
+  }>
+}
+
+export type FoodLogItem = {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    image?: string;
+}
+
+export type DailyLog = {
+    id: string; // YYYY-MM-DD
+    userId: string;
+    date: any; // Firestore timestamp
+    totals: {
+        calories: number;
+        protein: number;
+        carbs: number;
+        fats: number;
+    };
+    meals: {
+        breakfast: FoodLogItem[];
+        lunch: FoodLogItem[];
+        dinner: FoodLogItem[];
+        snacks: FoodLogItem[];
+    }
+}

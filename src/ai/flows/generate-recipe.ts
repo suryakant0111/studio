@@ -46,9 +46,9 @@ export type GenerateRecipeInput = z.infer<typeof GenerateRecipeInputSchema>;
 
 const GenerateRecipeOutputSchema = z.object({
   recipeName: z.string().describe('The name of the generated recipe.'),
-  ingredients: z.string().describe('The ingredients required for the recipe.'),
-  instructions: z.string().describe('The step-by-step instructions for preparing the recipe.'),
-  nutritionInfo: z.string().describe('The nutritional information for the recipe.'),
+  ingredients: z.array(z.string()).describe('The list of ingredients required for the recipe.'),
+  instructions: z.array(z.string()).describe('The step-by-step instructions for preparing the recipe.'),
+  nutritionInfo: z.string().describe('A summary of the nutritional information for the recipe (e.g., "Calories: 350, Protein: 30g").'),
 });
 export type GenerateRecipeOutput = z.infer<typeof GenerateRecipeOutputSchema>;
 
@@ -62,7 +62,7 @@ const prompt = ai.definePrompt({
   output: {schema: GenerateRecipeOutputSchema},
   prompt: `You are a world-class chef specializing in creating delicious and healthy recipes based on user-provided ingredients and preferences.
 
-  Based on the following information, create a new recipe:
+  Based on the following information, create a new recipe. Ensure ingredients and instructions are returned as arrays of strings.
 
   Ingredients: {{{ingredients}}}
   Purpose: {{{purpose}}}
@@ -70,12 +70,7 @@ const prompt = ai.definePrompt({
   Available Time: {{{availableTime}}} minutes
   Dietary Restrictions: {{#if dietaryRestrictions}}{{{dietaryRestrictions}}}{{else}}None{{/if}}
   Cuisine Preference: {{#if cuisinePreference}}{{{cuisinePreference}}}{{else}}None{{/if}}
-  Cooking Skill Level: {{#if cookingSkillLevel}}{{{cookingSkillLevel}}}{{else}}Any{{/if}}
-
-  Recipe Name:
-  Ingredients:
-  Instructions:
-  Nutrition Info:`,
+  Cooking Skill Level: {{#if cookingSkillLevel}}{{{cookingSkillLevel}}}{{else}}Any{{/if}}`,
 });
 
 const generateRecipeFlow = ai.defineFlow(

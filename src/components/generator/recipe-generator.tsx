@@ -17,8 +17,11 @@ import {
   Loader2,
   Sparkles,
   ChevronDown,
+  ChefHat,
+  Flame,
+  CheckCircle2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +43,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Separator } from "../ui/separator";
 
 const purposeOptions = [
   { id: "muscle-gain", label: "Muscle Gain", icon: Dumbbell },
@@ -340,22 +344,39 @@ export function RecipeGenerator() {
       {generatedRecipe && (
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>{generatedRecipe.recipeName}</CardTitle>
+            <CardTitle className="text-2xl flex items-center gap-2"><ChefHat /> {generatedRecipe.recipeName}</CardTitle>
+            <CardDescription className="flex items-center gap-2 pt-2"><Flame className="text-orange-500"/> {generatedRecipe.nutritionInfo}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Ingredients</h3>
-              <p className="whitespace-pre-wrap">{generatedRecipe.ingredients}</p>
+          <CardContent className="space-y-6">
+            <Separator />
+            <div className="grid md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <h3 className="font-semibold text-lg mb-2">Ingredients</h3>
+                <ul className="space-y-2">
+                  {generatedRecipe.ingredients.map((ingredient, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 mt-1 text-primary flex-shrink-0" />
+                      <span>{ingredient}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="md:col-span-2">
+                <h3 className="font-semibold text-lg mb-2">Instructions</h3>
+                <ol className="space-y-4">
+                  {generatedRecipe.instructions.map((step, index) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <div className="flex-shrink-0 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center font-bold text-sm">
+                        {index + 1}
+                      </div>
+                      <p>{step}</p>
+                    </li>
+                  ))}
+                </ol>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Instructions</h3>
-              <p className="whitespace-pre-wrap">{generatedRecipe.instructions}</p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg mb-2">Nutrition Info</h3>
-              <p className="whitespace-pre-wrap">{generatedRecipe.nutritionInfo}</p>
-            </div>
-             <div className="flex gap-4 pt-4">
+
+            <div className="flex gap-4 pt-4">
                 <Button>Save to My Recipes</Button>
                 <Button variant="outline" onClick={() => setGeneratedRecipe(null)}>Clear</Button>
             </div>

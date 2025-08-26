@@ -1,11 +1,12 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { generateRecipe } from "@/ai/flows/generate-recipe";
-import type { GenerateRecipeOutput } from "@/ai/flows/generate-recipe";
+import type { GenerateRecipeOutput } from "@/ai/flows/types";
 import { modifyRecipe } from "@/ai/flows/modify-recipe";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -89,12 +90,12 @@ export function RecipeGenerator() {
   const [generatedRecipe, setGeneratedRecipe] = useState<GenerateRecipeOutput | null>(null);
   const { toast } = useToast();
 
-  useState(() => {
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
         setUser(currentUser);
     });
     return () => unsubscribe();
-  });
+  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),

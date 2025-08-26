@@ -44,7 +44,7 @@ const GenerateRecipeInputSchema = z.object({
 });
 export type GenerateRecipeInput = z.infer<typeof GenerateRecipeInputSchema>;
 
-const GenerateRecipeOutputSchema = z.object({
+export const GenerateRecipeOutputSchema = z.object({
   recipeName: z.string().describe('The name of the generated recipe.'),
   ingredients: z.array(z.string()).describe('The list of ingredients required for the recipe.'),
   instructions: z.array(z.string()).describe('The step-by-step instructions for preparing the recipe.'),

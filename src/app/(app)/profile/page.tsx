@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { getUserProfile, updateUserProfile, UserProfile } from "@/services/userService";
@@ -17,18 +17,21 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 
-type FormData = {
-    name: string;
-    email: string;
-    goal: string;
-    dailyCalories: number;
-    dailyProtein: number;
-    dailyCarbs: number;
-    dailyFats: number;
-    notifications: boolean;
-    theme: string;
-};
+const profileFormSchema = z.object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Invalid email address"),
+});
+
+const goalsFormSchema = z.object({
+    goal: z.string(),
+    dailyCalories: z.coerce.number().min(0, "Cannot be negative"),
+    dailyProtein: z.coerce.number().min(0, "Cannot be negative"),
+    dailyCarbs: z.coerce.number().min(0, "Cannot be negative"),
+    dailyFats: z.coerce.number().min(0, "Cannot be negative"),
+});
 
 
 export default function ProfilePage() {
@@ -36,7 +39,24 @@ export default function ProfilePage() {
     const [loading, setLoading] = useState(true);
     const { toast } = useToast();
 
-    const { register, handleSubmit, reset, control, formState: { isDirty, isSubmitting } } = useForm<FormData>();
+    const { 
+        register: registerAccount, 
+        handleSubmit: handleAccountSubmit, 
+        reset: resetAccount,
+        formState: { isSubmitting: isSubmittingAccount } 
+    } = useForm({
+        resolver: zodResolver(profileFormSchema)
+    });
+    
+    const { 
+        control: controlGoals, 
+        handleSubmit: handleGoalsSubmit, 
+        reset: resetGoals,
+        register: registerGoals,
+        formState: { isSubmitting: isSubmittingGoals } 
+    } = useForm({
+        resolver: zodResolver(goalsFormSchema)
+    });
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -44,22 +64,24 @@ export default function ProfilePage() {
                 setUser(currentUser);
                 const userProfile = await getUserProfile(currentUser.uid);
                 if (userProfile) {
-                    reset({
+                    resetAccount({
                         name: userProfile.name,
                         email: userProfile.email,
+                    });
+                    resetGoals({
                         goal: userProfile.healthGoals.primaryGoal,
                         dailyCalories: userProfile.healthGoals.dailyCalories,
                         dailyProtein: userProfile.healthGoals.dailyProtein,
                         dailyCarbs: userProfile.healthGoals.dailyCarbs,
                         dailyFats: userProfile.healthGoals.dailyFats,
-                        notifications: true, // Placeholder
-                        theme: "system", // Placeholder
                     });
                 } else {
                      // Set initial default values if no profile exists
-                     reset({
+                     resetAccount({
                         name: currentUser.displayName || "",
                         email: currentUser.email || "",
+                     });
+                     resetGoals({
                         goal: "maintenance",
                         dailyCalories: 2000,
                         dailyProtein: 150,
@@ -74,9 +96,9 @@ export default function ProfilePage() {
         });
 
         return () => unsubscribe();
-    }, [reset]);
+    }, [resetAccount, resetGoals]);
 
-    const onAccountSubmit = async (data: FormData) => {
+    const onAccountSubmit = async (data: any) => {
         if (!user) return;
         try {
             const currentProfile = await getUserProfile(user.uid);
@@ -92,7 +114,7 @@ export default function ProfilePage() {
         }
     };
     
-    const onGoalsSubmit = async (data: FormData) => {
+    const onGoalsSubmit = async (data: any) => {
         if (!user) return;
         try {
             const currentProfile = await getUserProfile(user.uid);
@@ -143,7 +165,7 @@ export default function ProfilePage() {
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-            <form onSubmit={handleSubmit(onAccountSubmit)}>
+            <form onSubmit={handleAccountSubmit(onAccountSubmit)}>
                 <Card>
                     <CardHeader>
                         <CardTitle>Account Information</CardTitle>
@@ -152,18 +174,18 @@ export default function ProfilePage() {
                     <CardContent className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Full Name</Label>
-                            <Input id="name" {...register("name")} />
+                            <Input id="name" {...registerAccount("name")} />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="email">Email Address</Label>
-                            <Input id="email" type="email" {...register("email")} />
+                            <Input id="email" type="email" {...registerAccount("email")} />
                         </div>
-                        <Button type="submit" disabled={isSubmitting}>Save Changes</Button>
+                        <Button type="submit" disabled={isSubmittingAccount}>Save Changes</Button>
                     </CardContent>
                 </Card>
             </form>
 
-            <form onSubmit={handleSubmit(onGoalsSubmit)}>
+            <form onSubmit={handleGoalsSubmit(onGoalsSubmit)}>
                 <Card>
                     <CardHeader>
                         <CardTitle>Health & Nutrition Goals</CardTitle>
@@ -174,7 +196,7 @@ export default function ProfilePage() {
                             <Label htmlFor="goal">Primary Goal</Label>
                             <Controller
                                 name="goal"
-                                control={control}
+                                control={controlGoals}
                                 render={({ field }) => (
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <SelectTrigger id="goal">
@@ -192,22 +214,22 @@ export default function ProfilePage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="calories">Daily Calories (kcal)</Label>
-                                <Input id="calories" type="number" {...register("dailyCalories")} />
+                                <Input id="calories" type="number" {...registerGoals("dailyCalories")} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="protein">Daily Protein (g)</Label>
-                                <Input id="protein" type="number" {...register("dailyProtein")} />
+                                <Input id="protein" type="number" {...registerGoals("dailyProtein")} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="carbs">Daily Carbs (g)</Label>
-                                <Input id="carbs" type="number" {...register("dailyCarbs")} />
+                                <Input id="carbs" type="number" {...registerGoals("dailyCarbs")} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="fats">Daily Fats (g)</Label>
-                                <Input id="fats" type="number" {...register("dailyFats")} />
+                                <Input id="fats" type="number" {...registerGoals("dailyFats")} />
                             </div>
                         </div>
-                        <Button type="submit" disabled={isSubmitting}>Update Goals</Button>
+                        <Button type="submit" disabled={isSubmittingGoals}>Update Goals</Button>
                     </CardContent>
                 </Card>
             </form>
@@ -293,3 +315,5 @@ const ProfilePageSkeleton = () => (
         </div>
     </div>
 );
+
+    

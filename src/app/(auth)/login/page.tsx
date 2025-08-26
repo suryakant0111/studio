@@ -14,10 +14,11 @@ import { Label } from "@/components/ui/label"
 import { UtensilsCrossed } from "lucide-react"
 import Link from "next/link"
 import { auth } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, setPersistence, browserLocalPersistence } from "firebase/auth";
 import { useRouter } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { createUserProfile, getUserProfile } from "@/services/userService"
+import { useEffect } from "react";
 
 // Inline SVG for Google Icon
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -33,13 +34,20 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // 🔑 Persist user session across refresh
+  useEffect(() => {
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.error("Failed to set persistence:", err);
+    });
+  }, []);
+
   const handleGoogleSignIn = async () => {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user profile exists, if not, create one
+      // Create user profile if it doesn't exist
       const userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
         await createUserProfile(user, {
@@ -47,16 +55,15 @@ export default function LoginPage() {
           email: user.email!,
         });
       }
-      
+
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Error signing in with Google: ", error);
-      
-      // Don't show error if user closed the popup
+
       if (error.code === 'auth/popup-closed-by-user') {
-        return; // Silent return as user intentionally closed the popup
+        return; // user canceled popup
       }
-      
+
       toast({
         title: "Authentication Error",
         description: error.code === 'auth/account-exists-with-different-credential'
@@ -71,7 +78,7 @@ export default function LoginPage() {
     event.preventDefault();
     const email = (event.currentTarget.elements.namedItem('email') as HTMLInputElement)?.value?.trim();
     const password = (event.currentTarget.elements.namedItem('password') as HTMLInputElement)?.value;
-  
+
     if (!email || !password) {
       toast({ 
         title: "Error", 
@@ -80,12 +87,11 @@ export default function LoginPage() {
       });
       return;
     }
-  
+
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
-      
-      // Check if user profile exists, if not, create one
+
       const userProfile = await getUserProfile(user.uid);
       if (!userProfile) {
         await createUserProfile(user, {
@@ -93,12 +99,12 @@ export default function LoginPage() {
           email: user.email!,
         });
       }
-      
+
       router.push('/dashboard');
     } catch (error: any) {
       console.error("Sign-in error:", error);
       let errorMessage = "An error occurred during sign in. Please try again.";
-      
+
       switch (error.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
@@ -116,7 +122,7 @@ export default function LoginPage() {
         default:
           errorMessage = error.message || errorMessage;
       }
-      
+
       toast({ 
         title: "Sign In Failed", 
         description: errorMessage,

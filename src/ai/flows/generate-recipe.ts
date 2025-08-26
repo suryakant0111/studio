@@ -9,6 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
+import { GenerateRecipeOutputSchema } from './types';
 
 const GenerateRecipeInputSchema = z.object({
   ingredients: z
@@ -44,12 +45,6 @@ const GenerateRecipeInputSchema = z.object({
 });
 export type GenerateRecipeInput = z.infer<typeof GenerateRecipeInputSchema>;
 
-export const GenerateRecipeOutputSchema = z.object({
-  recipeName: z.string().describe('The name of the generated recipe.'),
-  ingredients: z.array(z.string()).describe('The list of ingredients required for the recipe.'),
-  instructions: z.array(z.string()).describe('The step-by-step instructions for preparing the recipe.'),
-  nutritionInfo: z.string().describe('A summary of the nutritional information for the recipe (e.g., "Calories: 350, Protein: 30g").'),
-});
 export type GenerateRecipeOutput = z.infer<typeof GenerateRecipeOutputSchema>;
 
 export async function generateRecipe(input: GenerateRecipeInput): Promise<GenerateRecipeOutput> {

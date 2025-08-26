@@ -9,7 +9,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import { GenerateRecipeOutputSchema } from './generate-recipe';
+import { GenerateRecipeOutputSchema } from './types';
 
 const ModifyRecipeInputSchema = z.object({
   recipe: GenerateRecipeOutputSchema.describe('The original recipe object to be modified.'),
